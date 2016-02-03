@@ -1,23 +1,29 @@
 "use strict"
 const geojsonVt = require('geojson-vt');
 const vtPbf = require('vt-pbf');
-const url = require('url');
-const fs = require('fs');
 const request = require('requestretry');
+const zlib = require('zlib');
+
 
 const query = `
   query stops{
     stops{
       gtfsId
       name
+      code
+      platformCode
       lat
       lon
       locationType
       parentStation{
         gtfsId
       }
-      routes{
-        type
+      patterns{
+        headsign
+        route{
+          type
+          shortName
+        }
       }
     }
   }`;
@@ -47,12 +53,15 @@ class GeoJSONSource {
         properties: {
           gtfsId: stop.gtfsId,
           name: stop.name,
+          code: stop.code,
+          platform: stop.platformCode,
           parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
-          type: stop.routes == null ? null : [...new Set(stop.routes.map(route => route.type))]
+          type: stop.patterns == null ? null : [...new Set(stop.patterns.map(pattern => pattern.route.type))],
+          patterns: stop.patterns == null ? null : stop.patterns.map(pattern => (pattern.route.shortName + "|" + pattern.route.type + "|" + pattern.headsign))
         }
       }))}
 
-      this.tileIndex = geojsonVt(geoJSON, {maxZoom: 20}); //TODO: this should be configurable
+      this.tileIndex = geojsonVt(geoJSON, {maxZoom: 20, buffer: 512}); //TODO: this should be configurable
       callback(null, this)
     }.bind(this));
   };
@@ -64,12 +73,23 @@ class GeoJSONSource {
       tile = {features: []}
     }
 
-    callback(null, vtPbf.fromGeojsonVt({ 'geojsonLayer': tile}), {"content-encoding": "none"})
+    zlib.gzip(vtPbf.fromGeojsonVt({geojsonLayer: tile}), function (err, buffer) {
+      if (err){
+        callback(err);
+        return;
+      }
+
+      callback(null, buffer, {"content-encoding": "gzip"})
+    })
   }
 
   getInfo(callback){
     callback(null, {
-      format: "pbf"
+      format: "pbf",
+      vector_layers: [{
+        description: "",
+        id: "geojsonLayer"
+      }]
     })
   }
 }
