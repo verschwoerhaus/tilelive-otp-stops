@@ -46,7 +46,7 @@ class GeoJSONSource {
         callback(err);
         return;
       }
-
+      console.log('got stops')
       const geoJSON = {type: "FeatureCollection", features: JSON.parse(body).data.stops.map(stop => ({
         type: "Feature",
         geometry: {type: "Point", coordinates: [stop.lon, stop.lat]},
@@ -57,7 +57,11 @@ class GeoJSONSource {
           platform: stop.platformCode,
           parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
           type: stop.patterns == null ? null : [...new Set(stop.patterns.map(pattern => pattern.route.type))],
-          patterns: stop.patterns == null ? null : stop.patterns.map(pattern => (pattern.route.shortName + "|" + pattern.route.type + "|" + pattern.headsign))
+          patterns: stop.patterns == null ? null : JSON.stringify(stop.patterns.map(pattern => ({
+            headsign: pattern.headsign,
+            type: pattern.route.type,
+            shortName: pattern.route.shortName
+          })))
         }
       }))}
 
