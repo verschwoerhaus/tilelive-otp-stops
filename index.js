@@ -46,7 +46,6 @@ class GeoJSONSource {
         callback(err);
         return;
       }
-      console.log('got stops')
       const geoJSON = {type: "FeatureCollection", features: JSON.parse(body).data.stops.map(stop => ({
         type: "Feature",
         geometry: {type: "Point", coordinates: [stop.lon, stop.lat]},
@@ -56,7 +55,7 @@ class GeoJSONSource {
           code: stop.code,
           platform: stop.platformCode,
           parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
-          type: stop.patterns == null ? null : [...new Set(stop.patterns.map(pattern => pattern.route.type))],
+          type: stop.patterns == null ? null : [...new Set(stop.patterns.map(pattern => pattern.route.type))].join(","),
           patterns: stop.patterns == null ? null : JSON.stringify(stop.patterns.map(pattern => ({
             headsign: pattern.headsign,
             type: pattern.route.type,
@@ -77,7 +76,7 @@ class GeoJSONSource {
       tile = {features: []}
     }
 
-    zlib.gzip(vtPbf.fromGeojsonVt({geojsonLayer: tile}), function (err, buffer) {
+    zlib.gzip(vtPbf.fromGeojsonVt({stops: tile}), function (err, buffer) {
       if (err){
         callback(err);
         return;
@@ -90,9 +89,12 @@ class GeoJSONSource {
   getInfo(callback){
     callback(null, {
       format: "pbf",
+      maxzoom: 20,
+      minzoom: 0,
+      scheme: "tms",
       vector_layers: [{
         description: "",
-        id: "geojsonLayer"
+        id: "stops"
       }]
     })
   }
