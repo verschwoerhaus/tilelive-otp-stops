@@ -21,7 +21,7 @@ const query = `
       patterns{
         headsign
         route{
-          type
+          mode
           shortName
         }
       }
@@ -55,10 +55,10 @@ class GeoJSONSource {
           code: stop.code,
           platform: stop.platformCode,
           parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
-          type: stop.patterns == null ? null : [...new Set(stop.patterns.map(pattern => pattern.route.type))].join(","),
+          type: stop.patterns == null ? null : [...new Set(stop.patterns.map(pattern => pattern.route.mode))].join(","),
           patterns: stop.patterns == null ? null : JSON.stringify(stop.patterns.map(pattern => ({
             headsign: pattern.headsign,
-            type: pattern.route.type,
+            type: pattern.route.mode,
             shortName: pattern.route.shortName
           })))
         }
