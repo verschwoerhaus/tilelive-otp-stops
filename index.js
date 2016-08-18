@@ -3,10 +3,41 @@ const geojsonVt = require('geojson-vt');
 const vtPbf = require('vt-pbf');
 const request = require('requestretry');
 const zlib = require('zlib');
+const _ = require('lodash')
 
+Array.prototype.flatMap = function(lambda) {
+  return [].concat.apply([],this.map(lambda));
+};
 
-const query = `
-  query stops{
+Array.prototype.uniq = function() {
+  return _.uniqWith(this, _.isEqual)
+}
+
+const getTileIndex = (url, query, map, callback) => {
+  request({
+    url: url,
+    body: query,
+    maxAttempts: 120,
+    retryDelay: 30000,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/graphql'
+    }
+  }, function (err, res, body){
+    if (err){
+      console.log(err)
+      callback(err);
+      return;
+    }
+    callback(null, geojsonVt(map(JSON.parse(body)), {
+      maxZoom: 20,
+      buffer: 1024,
+    })); //TODO: this should be configurable)
+  })
+}
+
+const stopQuery = `
+  query stops {
     stops{
       gtfsId
       name
@@ -15,68 +46,113 @@ const query = `
       lat
       lon
       locationType
-      parentStation{
+      parentStation {
         gtfsId
       }
-      patterns{
+      patterns {
         headsign
-        route{
+        route {
           mode
           shortName
         }
       }
     }
-  }`;
+  }
+`;
+
+const stationQuery = `
+  query stations{
+    stations{
+      gtfsId
+      name
+      lat
+      lon
+      locationType
+      stops {
+        gtfsId
+        patterns {
+          route {
+            mode
+            shortName
+          }
+        }
+      }
+    }
+  }
+`;
+
+const stopMapper = data => ({
+  type: "FeatureCollection",
+  features: data.data.stops.map(stop => ({
+    type: "Feature",
+    geometry: {type: "Point", coordinates: [stop.lon, stop.lat]},
+    properties: {
+      gtfsId: stop.gtfsId,
+      name: stop.name,
+      code: stop.code,
+      platform: stop.platformCode,
+      parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
+      type: stop.patterns == null ? null : stop.patterns.map(pattern => pattern.route.mode).uniq().join(","),
+      patterns: stop.patterns == null ? null : JSON.stringify(stop.patterns.map(pattern => ({
+        headsign: pattern.headsign,
+        type: pattern.route.mode,
+        shortName: pattern.route.shortName,
+      })))
+    }
+  }))
+})
+
+const stationMapper = data => ({
+  type: "FeatureCollection",
+  features: data.data.stations.map(station => ({
+    type: "Feature",
+    geometry: {type: "Point", coordinates: [station.lon, station.lat]},
+    properties: {
+      gtfsId: station.gtfsId,
+      name: station.name,
+      type: Array.from(new Set(station.stops.flatMap(stop => stop.patterns.flatMap(pattern => pattern.route.mode)))).join(','),
+      stops: JSON.stringify(station.stops.map(stop => stop.gtfsId)),
+      routes: JSON.stringify(station.stops.flatMap(stop => stop.patterns.flatMap(pattern => pattern.route)).uniq()),
+    }
+  }))
+})
+
 
 class GeoJSONSource {
   constructor(uri, callback){
-    uri.protocol = "http:"
-    request({
-      url: uri,
-      body: query,
-      maxAttempts: 120,
-      retryDelay: 30000,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/graphql'
-      }
-    }, function (err, res, body){
+    uri.protocol = "https:"
+    getTileIndex(uri, stopQuery, stopMapper, (err, stopTileIndex) => {
       if (err){
-        console.log(err)
         callback(err);
         return;
       }
-      const geoJSON = {type: "FeatureCollection", features: JSON.parse(body).data.stops.map(stop => ({
-        type: "Feature",
-        geometry: {type: "Point", coordinates: [stop.lon, stop.lat]},
-        properties: {
-          gtfsId: stop.gtfsId,
-          name: stop.name,
-          code: stop.code,
-          platform: stop.platformCode,
-          parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
-          type: stop.patterns == null ? null : [...new Set(stop.patterns.map(pattern => pattern.route.mode))].join(","),
-          patterns: stop.patterns == null ? null : JSON.stringify(stop.patterns.map(pattern => ({
-            headsign: pattern.headsign,
-            type: pattern.route.mode,
-            shortName: pattern.route.shortName
-          })))
+      this.stopTileIndex = stopTileIndex;
+      getTileIndex(uri, stationQuery, stationMapper, (err, stationTileIndex) => {
+        if (err){
+          callback(err);
+          return;
         }
-      }))}
-
-      this.tileIndex = geojsonVt(geoJSON, {maxZoom: 20, buffer: 512}); //TODO: this should be configurable
-      callback(null, this)
-    }.bind(this));
+        this.stationTileIndex = stationTileIndex;
+        console.log("stops loaded")
+        callback(null, this);
+      })
+    })
   };
 
-  getTile(z, x, y, callback){
-    let tile = this.tileIndex.getTile(z, x, y)
 
-    if (tile === null){
-      tile = {features: []}
+  getTile(z, x, y, callback){
+    let stopTile = this.stopTileIndex.getTile(z, x, y)
+    let stationTile = this.stationTileIndex.getTile(z, x, y)
+
+    if (stopTile === null){
+      stopTile = {features: []}
     }
 
-    zlib.gzip(vtPbf.fromGeojsonVt({stops: tile}), function (err, buffer) {
+    if (stationTile === null){
+      stationTile = {features: []}
+    }
+
+    zlib.gzip(vtPbf.fromGeojsonVt({stops: stopTile, stations: stationTile}), function (err, buffer) {
       if (err){
         callback(err);
         return;
@@ -95,6 +171,10 @@ class GeoJSONSource {
       vector_layers: [{
         description: "",
         id: "stops"
+      },
+      {
+        description: "",
+        id: "stations"
       }]
     })
   }

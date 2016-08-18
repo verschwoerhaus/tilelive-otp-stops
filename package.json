@@ -1,6 +1,6 @@
 {
   "name": "tilelive-otp-stops",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,8 +9,9 @@
   "author": "hannesj",
   "license": "ISC",
   "dependencies": {
-    "geojson-vt": "^2.1.8",
+    "geojson-vt": "^2.4.0",
+    "lodash": "^4.15.0",
     "requestretry": "^1.6.0",
-    "vt-pbf": "^2.0.2"
+    "vt-pbf": "^2.1.1"
   }
 }
