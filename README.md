@@ -4,6 +4,7 @@
 
 - Tessera
  -  Mapnik is a requirement for tessera
+ -  - Mapnik currently requires Node < 6
 - OpenTripPlanner server (v. 0.20.0 or above)
 
 ## Stand-alone installation
