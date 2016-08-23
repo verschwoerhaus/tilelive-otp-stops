@@ -10,7 +10,7 @@
 
     git clone https://github.com/HSLdevcom/tilelive-otp-stops
     brew install mapnik (for OS X)
-    apt-get install mapnik (for debian based Linux distros)
+    apt-get install mapnik (for Debian based Linux distros)
     npm install tessera
     
 ## Running stand-alone
