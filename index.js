@@ -120,7 +120,7 @@ const stationMapper = data => ({
 
 class GeoJSONSource {
   constructor(uri, callback){
-    uri.protocol = "https:"
+    uri.protocol = "http:"
     getTileIndex(uri, stopQuery, stopMapper, (err, stopTileIndex) => {
       if (err){
         callback(err);
