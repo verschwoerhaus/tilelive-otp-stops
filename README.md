@@ -3,12 +3,15 @@
 ## Requirements
 
 - Tessera
+ -  Mapnik is a requirement for tessera
 - OpenTripPlanner server (v. 0.20.0 or above)
 
 ## Stand-alone installation
 
     git clone https://github.com/HSLdevcom/tilelive-otp-stops
-    npm isntall tessera
+    brew install mapnik (for OS X)
+    apt-get install mapnik (for debian based Linux distros)
+    npm install tessera
     
 ## Running stand-alone
 
