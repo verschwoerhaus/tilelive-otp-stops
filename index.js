@@ -22,7 +22,7 @@ const getTileIndex = (url, query, map, callback) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/graphql',
-      'OTPTimeout': '30000'
+      'OTPTimeout': '60000'
     }
   }, function (err, res, body){
     if (err){
