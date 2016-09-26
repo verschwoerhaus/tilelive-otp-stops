@@ -21,7 +21,8 @@ const getTileIndex = (url, query, map, callback) => {
     retryDelay: 30000,
     method: 'POST',
     headers: {
-      'Content-Type': 'application/graphql'
+      'Content-Type': 'application/graphql',
+      'OTPTimeout': '30000'
     }
   }, function (err, res, body){
     if (err){
