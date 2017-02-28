@@ -169,7 +169,6 @@ class GeoJSONSource {
       format: "pbf",
       maxzoom: 20,
       minzoom: 0,
-      scheme: "tms",
       vector_layers: [{
         description: "",
         id: "stops"
