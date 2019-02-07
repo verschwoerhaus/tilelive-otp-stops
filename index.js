@@ -11,7 +11,11 @@ Array.prototype.flatMap = function(lambda) {
 
 Array.prototype.uniq = function() {
   return _.uniqWith(this, _.isEqual)
-}
+};
+
+Array.prototype.last = function() {
+  return _.last(this)
+};
 
 const getTileIndex = (url, query, map, callback) => {
   request({
@@ -94,7 +98,7 @@ const stopMapper = data => ({
       code: stop.code,
       platform: stop.platformCode,
       parentStation: stop.parentStation == null ? null : stop.parentStation.gtfsId,
-      type: stop.patterns == null ? null : stop.patterns.map(pattern => pattern.route.mode).uniq().join(","),
+      type: stop.patterns == null ? null : stop.patterns.map(pattern => pattern.route.mode).uniq().sort().last(),
       patterns: stop.patterns == null ? null : JSON.stringify(stop.patterns.map(pattern => ({
         headsign: pattern.headsign,
         type: pattern.route.mode,
@@ -112,7 +116,7 @@ const stationMapper = data => ({
     properties: {
       gtfsId: station.gtfsId,
       name: station.name,
-      type: Array.from(new Set(station.stops.flatMap(stop => stop.patterns.flatMap(pattern => pattern.route.mode)))).join(','),
+      type: Array.from(new Set(station.stops.flatMap(stop => stop.patterns.flatMap(pattern => pattern.route.mode)))).sort().last(),
       stops: JSON.stringify(station.stops.map(stop => stop.gtfsId)),
       routes: JSON.stringify(station.stops.flatMap(stop => stop.patterns.flatMap(pattern => pattern.route)).uniq()),
     }
